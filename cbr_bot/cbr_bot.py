@@ -1,11 +1,12 @@
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import cbr_api
+import cbr_api, cbr_graph
 from datetime import date, datetime
 
 
 async def cbr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    print('cbr message')
+    print(f'Команда /cbr от username={update.effective_user.username} chat_id={update.message.chat_id}')
 
     # -- парсим аргументы команды /cbr
     if (len(context.args) > 0):
@@ -26,11 +27,14 @@ async def cbr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         date_req_date = None
 
+    await update.message.reply_chat_action(ChatAction.TYPING)
+    
     # -- получаем данные по курсам валют из апи ЦБ
-    charcodes = ['EUR', 'USD']
+    charcodes = ['EUR', 'USD', 'CNY']
     currencies = cbr_api.get_currency_rates(charcodes, date_req_date)
     eur = currencies['EUR']
     usd = currencies['USD']
+    cny = currencies['CNY']
 
     # -- выводим курсы валют пользователю
     if date_req_date is None:
@@ -38,11 +42,14 @@ async def cbr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         date_req_date_or_today = date_req_date
 
-    await update.message.reply_text(f"Курсы валют на {date_req_date_or_today.strftime('%d %b %Y')}. Евро = {eur.value}, Доллар = {usd.value}")
+    await update.message.reply_text(f"Курсы валют на {date_req_date_or_today.strftime('%d %b %Y')}. Евро = {eur.value}, Доллар = {usd.value}, Юань = {cny.value}")
 
-    print(update.effective_user.username)
+    await update.message.reply_chat_action(ChatAction.TYPING)
 
-    
+    # -- выводим график изменения курсов валют
+    image_bytes = cbr_graph.get_figure_image()
+    await update.message.reply_photo(image_bytes)
+   
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token("5655342101:AAG4SveEB81nDXOpIfw5iSGMrsEA42fjmAY").build()
